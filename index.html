@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>আমার ভিডিও স্টুডিও</title>
+<style>
+:root{--bg:#14161f;--card:#1e2130;--ink:#f2efe9;--mute:#9a9cae;--acc:#7c5cff;--err:#ff7a7a;
+font-family:"Hind Siliguri","Noto Sans Bengali",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;justify-content:center;padding:24px 16px}
+main{width:100%;max-width:560px}
+h1{font-size:1.9rem;margin:8px 0 6px;line-height:1.2}
+p.sub{color:var(--mute);margin:0 0 20px}
+textarea{width:100%;min-height:130px;border-radius:14px;border:1px solid #33374d;background:var(--card);color:var(--ink);padding:14px;font:inherit;font-size:1rem;resize:vertical}
+textarea:focus,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button{margin-top:12px;width:100%;padding:14px;border:0;border-radius:14px;background:var(--acc);color:#fff;font:inherit;font-weight:600;font-size:1.05rem;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}
+#status{margin-top:18px;color:var(--mute)}
+#status.err{color:var(--err)}
+.bar{height:4px;border-radius:4px;background:#2a2e44;overflow:hidden;margin-top:10px;display:none}
+.bar i{display:block;height:100%;width:35%;background:var(--acc);animation:s 1.2s ease-in-out infinite}
+@keyframes s{0%{margin-left:-35%}100%{margin-left:100%}}
+@media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%}}
+video{width:100%;border-radius:14px;margin-top:18px;background:#000}
+a.dl{display:none;margin-top:10px;color:var(--ink);text-align:center}
+</style>
+</head>
+<body>
+<main>
+<h1>আইডিয়া লিখুন, ভিডিও পান</h1>
+<p class="sub">যা দেখতে চান তার বর্ণনা দিন। ভিডিও হতে ১-৩ মিনিট লাগে।</p>
+<textarea id="prompt" placeholder="যেমন: A tall mafia boss in a black suit walking through a rainy city at night"></textarea>
+<button id="go">ভিডিও বানান</button>
+<div class="bar" id="bar"><i></i></div>
+<div id="status" role="status"></div>
+<video id="vid" controls playsinline hidden></video>
+<a class="dl" id="dl" href="#" download target="_blank" rel="noopener">ভিডিও ডাউনলোড করুন</a>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const go=$('go'),st=$('status'),bar=$('bar'),vid=$('vid'),dl=$('dl');
+function say(t,e){st.textContent=t;st.className=e?'err':''}
+function busy(b){go.disabled=b;bar.style.display=b?'block':'none'}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+go.onclick=async()=>{
+  const prompt=$('prompt').value.trim();
+  if(!prompt){say('আগে ভিডিওর বর্ণনা লিখুন।',1);return}
+  busy(true);vid.hidden=true;dl.style.display='none';say('শুরু হচ্ছে...');
+  try{
+    const r=await fetch('/api/video',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||'রিকোয়েস্ট ব্যর্থ হয়েছে');
+    for(let i=0;i<90;i++){
+      await wait(5000);
+      say('ভিডিও তৈরি হচ্ছে... একটু অপেক্ষা করুন।');
+      const s=await fetch('/api/video?id='+encodeURIComponent(j.id));
+      const d=await s.json();
+      if(!s.ok)throw new Error(d.error||'স্ট্যাটাস পাওয়া যায়নি');
+      if(d.status==='done'){
+        vid.src=d.url;vid.hidden=false;dl.href=d.url;dl.style.display='block';
+        say('ভিডিও তৈরি হয়েছে।');busy(false);return;
+      }
+    }
+    throw new Error('অনেক সময় লাগছে। আবার চেষ্টা করুন।');
+  }catch(e){say(e.message,1);busy(false)}
+};
+</script>
+</body>
+</html>
